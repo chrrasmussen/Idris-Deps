@@ -69,9 +69,13 @@ ignored _ = False
 
 -- UTILS
 
+joinString : String -> List String -> String
+joinString sep str =
+  concat (intersperse sep str)
+
 showNamespace : List String -> String
 showNamespace ns =
-  concat (intersperse "." ns)
+  joinString "." ns
 
 
 -- DATA TYPES
