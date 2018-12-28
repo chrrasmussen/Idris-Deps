@@ -72,12 +72,18 @@ showNamespace ns =
 Parser : Type -> Type
 Parser a = Grammar IdrisToken True a
 
-data ModuleDecl = MkModule (List String)
+record ModuleDecl where
+  constructor MkModule
+  ns : List String
 
 Show ModuleDecl where
-  show (MkModule name) = "module " ++ (showNamespace name)
+  show (MkModule ns) = "module " ++ showNamespace ns
 
-data ImportDecl = MkImport Bool (List String) (List String)
+record ImportDecl where
+  constructor MkImport
+  isPublic : Bool
+  ns : List String
+  nsAs : List String
 
 Show ImportDecl where
   show (MkImport isPublic ns nsAs) =
