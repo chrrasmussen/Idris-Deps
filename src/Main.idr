@@ -195,7 +195,7 @@ runParser : String -> Grammar IdrisToken e a -> Maybe a
 runParser str parser =
   let
     tokens = map tok (runLexer str)
-    validTokens = filter (not . ignored) $ tokens
+    validTokens = filter (not . ignored) tokens
     Right (res, _) = parse parser validTokens
       | Nothing
   in Just res
