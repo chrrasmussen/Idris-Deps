@@ -59,7 +59,6 @@ ignored (Tok IIgnore _) = True
 ignored _ = False
 
 
-
 -- UTILS
 
 showNamespace : List String -> String
@@ -67,23 +66,28 @@ showNamespace ns =
   concat (intersperse "." ns)
 
 
--- PARSER
-
-Parser : Type -> Type
-Parser a = Grammar IdrisToken True a
+-- DATA TYPES
 
 record Module where
   constructor MkModule
   ns : List String
-
-Show Module where
-  show (MkModule ns) = "module " ++ showNamespace ns
 
 record Import where
   constructor MkImport
   isPublic : Bool
   ns : List String
   nsAs : List String
+
+record IdrisHead where
+  constructor MkIdrisHead
+  mod : Maybe Module
+  imports : List Import
+
+
+-- SHOW IMPLEMENTATIONS
+
+Show Module where
+  show (MkModule ns) = "module " ++ showNamespace ns
 
 Show Import where
   show (MkImport isPublic ns nsAs) =
@@ -92,6 +96,22 @@ Show Import where
       nsAsSpecifier = if ns /= nsAs then " as " ++ showNamespace nsAs else ""
     in
       "import " ++ publicSpecifier ++ showNamespace ns ++ nsAsSpecifier
+
+Show IdrisHead where
+  show (MkIdrisHead mod imports) =
+    let
+      moduleString = case mod of
+        Just mod' => show mod'
+        _ => ""
+      importString = unlines (map show imports)
+    in
+      moduleString ++ "\n\n" ++ importString
+
+
+-- PARSER
+
+Parser : Type -> Type
+Parser a = Grammar IdrisToken True a
 
 symbol : String -> Parser ()
 symbol expectedName = do
@@ -130,11 +150,11 @@ import_ = do
     namespace_)
   pure (MkImport reexp ns nsAs)
 
-program : Grammar IdrisToken False (Maybe Module, List Import)
+program : Grammar IdrisToken False IdrisHead
 program = do
   mod <- optional module_
   imports <- many import_
-  pure (mod, imports)
+  pure (MkIdrisHead mod imports)
 
 runParser : String -> Grammar IdrisToken e a -> Maybe a
 runParser str parser =
