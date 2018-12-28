@@ -178,13 +178,22 @@ runParser str parser =
   in Just res
 
 
+-- DIR/FILES
+
+parseModule : String -> List String -> IO (Maybe IdrisHead)
+parseModule rootDir ns = do
+  let path = joinString "/" (rootDir :: ns) ++ ".idr"
+  Right contents <- readFile path
+    | pure Nothing
+  pure (runParser contents program)
+
+
 -- MAIN
 
 main : IO ()
 main = do
-  Right contents <- readFile "Main.idr"
-    | putStrLn "Read failed"
-  let Just moduleName = runParser contents program
+  let rootDir = "."
+  Just moduleRes <- parseModule rootDir ["Main"]
     | putStrLn "Parsing failed"
-  printLn moduleName
+  printLn moduleRes
   putStrLn "Finished"
