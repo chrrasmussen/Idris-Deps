@@ -4,6 +4,8 @@ import System
 import Control.Pipeline
 import Text.Lexer
 import public Text.Parser
+import Control.Monad.State
+import Data.SortedSet
 
 
 -- LEXER
@@ -188,28 +190,25 @@ parseModule rootDir ns = do
     | pure Nothing
   pure (runParser contents program)
 
-traverseModules : String -> List Import -> IO ()
-traverseModules rootDir imports' = do
-    traverse printImports imports'
-    pure ()
-  where
-    printImports : Import -> IO ()
-    printImports imp = do
-      Just moduleRes <- parseModule rootDir (ns imp)
-        | pure ()
-      print moduleRes
-      putStrLn "---"
+traverseModules : String -> List String -> StateT (SortedSet (List String)) IO ()
+traverseModules rootDir ns' = do
+  parsedModules <- get
+  let False = contains ns' parsedModules
+    | lift (putStrLn "*** Skipping")
+  Just moduleRes <- lift (parseModule rootDir ns')
+    | pure ()
+  modify (insert ns')
+  lift (print moduleRes)
+  lift (putStrLn "---")
+  traverse (traverseModules rootDir) (map ns (imports moduleRes))
+  pure ()
 
 
 -- MAIN
 
 run : String -> String -> IO ()
 run rootDir mainModule = do
-  Just moduleRes <- parseModule rootDir [mainModule]
-    | putStrLn "*** Parsing failed"
-  print moduleRes
-  putStrLn "---"
-  traverseModules rootDir (imports moduleRes)
+  runStateT (traverseModules rootDir [mainModule]) empty
   putStrLn "*** Finished"
 
 partial
