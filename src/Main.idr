@@ -216,9 +216,9 @@ traverseModules rootDir ns' = do
   parsedModules <- get
   let False = contains ns' parsedModules
     | lift (putStrLn "*** Skipping")
+  modify (insert ns')
   Just moduleRes <- lift (parseModule rootDir ns')
     | pure ()
-  modify (insert ns')
   lift (print moduleRes)
   lift (putStrLn "---")
   traverse (traverseModules rootDir) (map ns (imports moduleRes))
@@ -229,7 +229,9 @@ traverseModules rootDir ns' = do
 
 run : String -> String -> IO ()
 run rootDir mainModule = do
-  runStateT (traverseModules rootDir [mainModule]) empty
+  (_, ns') <- runStateT (traverseModules rootDir [mainModule]) empty
+  putStrLn "All namespaces:"
+  putStrLn $ unlines $ map showNamespace (SortedSet.toList ns')
   putStrLn "*** Finished"
 
 partial
