@@ -39,8 +39,16 @@ IdrisToken : Type
 IdrisToken = Token IdrisTokenKind
 
 ident : Lexer
-ident =
-  any <+> manyUntil (spaces <|> symbols) any
+ident = pred startIdent <+> many (pred validIdent)
+  where
+    startIdent : Char -> Bool
+    startIdent '_' = True
+    startIdent x = isAlpha x
+
+    validIdent : Char -> Bool
+    validIdent '_' = True
+    validIdent '\'' = True
+    validIdent x = isAlphaNum x
 
 tokenMap : TokenMap IdrisToken
 tokenMap = toTokenMap
