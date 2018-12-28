@@ -1,5 +1,6 @@
 module Main
 
+import System
 import Control.Pipeline
 import Text.Lexer
 import public Text.Parser
@@ -187,13 +188,33 @@ parseModule rootDir ns = do
     | pure Nothing
   pure (runParser contents program)
 
+traverseModules : String -> List Import -> IO ()
+traverseModules rootDir imports' = do
+    traverse printImports imports'
+    pure ()
+  where
+    printImports : Import -> IO ()
+    printImports imp = do
+      Just moduleRes <- parseModule rootDir (ns imp)
+        | pure ()
+      print moduleRes
+      putStrLn "---"
+
 
 -- MAIN
 
+run : String -> String -> IO ()
+run rootDir mainModule = do
+  Just moduleRes <- parseModule rootDir [mainModule]
+    | putStrLn "*** Parsing failed"
+  print moduleRes
+  putStrLn "---"
+  traverseModules rootDir (imports moduleRes)
+  putStrLn "*** Finished"
+
+partial
 main : IO ()
 main = do
-  let rootDir = "."
-  Just moduleRes <- parseModule rootDir ["Main"]
-    | putStrLn "Parsing failed"
-  printLn moduleRes
-  putStrLn "Finished"
+  [_, rootDir, mainModule] <- getArgs
+    | putStrLn "Usage: ./deps <rootDir> <mainModule>"
+  run rootDir mainModule
