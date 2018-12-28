@@ -6,6 +6,7 @@ import public Text.Parser
 import Control.Monad.State
 import Data.SortedMap
 
+%default total
 
 -- LEXER
 
@@ -210,6 +211,7 @@ parseModule rootDir ns = do
     | pure Nothing
   pure (runParser contents program)
 
+partial
 traverseModules : String -> List String -> StateT (SortedMap (List String) Bool) IO ()
 traverseModules rootDir ns' = do
   parsedModules <- get
@@ -228,6 +230,7 @@ traverseModules rootDir ns' = do
 
 -- MAIN
 
+partial
 run : String -> String -> IO ()
 run rootDir mainModule = do
   (_, ns') <- runStateT (traverseModules rootDir [mainModule]) empty
