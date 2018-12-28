@@ -1,7 +1,6 @@
 module Main
 
 import System
-import Control.Pipeline
 import Text.Lexer
 import public Text.Parser
 import Control.Monad.State
