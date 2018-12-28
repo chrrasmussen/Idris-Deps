@@ -5,7 +5,7 @@ import Control.Pipeline
 import Text.Lexer
 import public Text.Parser
 import Control.Monad.State
-import Data.SortedSet
+import Data.SortedMap
 
 
 -- LEXER
@@ -211,14 +211,16 @@ parseModule rootDir ns = do
     | pure Nothing
   pure (runParser contents program)
 
-traverseModules : String -> List String -> StateT (SortedSet (List String)) IO ()
+traverseModules : String -> List String -> StateT (SortedMap (List String) Bool) IO ()
 traverseModules rootDir ns' = do
   parsedModules <- get
-  let False = contains ns' parsedModules
+  let Nothing = SortedMap.lookup ns' parsedModules
     | lift (putStrLn "*** Skipping")
-  modify (insert ns')
   Just moduleRes <- lift (parseModule rootDir ns')
-    | pure ()
+    | do
+      modify (insert ns' False)
+      pure ()
+  modify (insert ns' True)
   lift (print moduleRes)
   lift (putStrLn "---")
   traverse (traverseModules rootDir) (map ns (imports moduleRes))
@@ -230,8 +232,12 @@ traverseModules rootDir ns' = do
 run : String -> String -> IO ()
 run rootDir mainModule = do
   (_, ns') <- runStateT (traverseModules rootDir [mainModule]) empty
-  putStrLn "All namespaces:"
-  putStrLn $ unlines $ map showNamespace (SortedSet.toList ns')
+  let allNs = SortedMap.toList ns'
+  let (local, external) = partition ((== True) . snd) allNs
+  putStrLn "All local namespaces:"
+  putStrLn $ unlines $ map (showNamespace . fst) local
+  putStrLn "All external namespaces:"
+  putStrLn $ unlines $ map (showNamespace . fst) external
   putStrLn "*** Finished"
 
 partial
