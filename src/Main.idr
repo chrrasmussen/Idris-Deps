@@ -81,17 +81,11 @@ data ImportDecl = MkImport Bool (List String) (List String)
 
 Show ImportDecl where
   show (MkImport isPublic ns nsAs) =
-    "import " ++ showPublic isPublic ++ showNamespace ns ++ showNsAs ns nsAs
-    where
-      showPublic : Bool -> String
-      showPublic True = "public "
-      showPublic False = ""
-
-      showNsAs : List String -> List String -> String
-      showNsAs ns' nsAs' =
-        if ns' /= nsAs'
-          then " as " ++ showNamespace nsAs'
-          else ""
+    let
+      publicSpecifier = if isPublic then "public " else ""
+      nsAsSpecifier = if ns /= nsAs then " as " ++ showNamespace nsAs else ""
+    in
+      "import " ++ publicSpecifier ++ showNamespace ns ++ nsAsSpecifier
 
 symbol : String -> Parser ()
 symbol expectedName = do
