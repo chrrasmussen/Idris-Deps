@@ -41,6 +41,24 @@ TokenKind IdrisTokenKind where
 IdrisToken : Type
 IdrisToken = Token IdrisTokenKind
 
+comment : Lexer
+comment = is '-' <+> is '-' <+> many (isNot '\n')
+
+commentAuxStyle : Lexer
+commentAuxStyle = is '|' <+> is '|' <+> is '|' <+> many (isNot '\n')
+
+toEndComment : (k : Nat) -> Recognise (k /= 0)
+toEndComment Z = empty
+toEndComment (S k) =
+  some (pred (\c => c /= '-' && c /= '{')) <+> toEndComment (S k) <|>
+    is '{' <+> is '-' <+> toEndComment (S (S k)) <|>
+    is '-' <+> is '}' <+> toEndComment k <|>
+    is '{' <+> toEndComment (S k) <|>
+    is '-' <+> toEndComment (S k)
+
+blockComment : Lexer
+blockComment = is '{' <+> is '-' <+> toEndComment 1
+
 ident : Lexer
 ident = pred startIdent <+> many (pred validIdent)
   where
@@ -55,7 +73,10 @@ ident = pred startIdent <+> many (pred validIdent)
 
 tokenMap : TokenMap IdrisToken
 tokenMap = toTokenMap
-  [ (spaces, IIgnore)
+  [ (comment, IIgnore)
+  , (commentAuxStyle, IIgnore)
+  , (blockComment, IIgnore)
+  , (spaces, IIgnore)
   , (symbols, ISymbol)
   , (ident, IIdentifier)
   ]
