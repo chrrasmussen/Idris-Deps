@@ -5,3 +5,4 @@ sourcedir = src
 opts = "--warnpartial"
 
 main = Main
+executable = deps
