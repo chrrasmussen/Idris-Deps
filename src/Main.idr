@@ -72,20 +72,20 @@ showNamespace ns =
 Parser : Type -> Type
 Parser a = Grammar IdrisToken True a
 
-record ModuleDecl where
+record Module where
   constructor MkModule
   ns : List String
 
-Show ModuleDecl where
+Show Module where
   show (MkModule ns) = "module " ++ showNamespace ns
 
-record ImportDecl where
+record Import where
   constructor MkImport
   isPublic : Bool
   ns : List String
   nsAs : List String
 
-Show ImportDecl where
+Show Import where
   show (MkImport isPublic ns nsAs) =
     let
       publicSpecifier = if isPublic then "public " else ""
@@ -112,13 +112,13 @@ namespace_ = do
   ns <- sepBy1 (symbol ".") (match IIdentifier)
   pure ns
 
-module_ : Parser ModuleDecl
+module_ : Parser Module
 module_ = do
   exactIdent "module"
   ns <- namespace_
   pure (MkModule ns)
 
-import_ : Parser ImportDecl
+import_ : Parser Import
 import_ = do
   exactIdent "import"
   reexp <- option False (do
@@ -130,7 +130,7 @@ import_ = do
     namespace_)
   pure (MkImport reexp ns nsAs)
 
-program : Grammar IdrisToken False (Maybe ModuleDecl, List ImportDecl)
+program : Grammar IdrisToken False (Maybe Module, List Import)
 program = do
   mod <- optional module_
   imports <- many import_
