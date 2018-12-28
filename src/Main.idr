@@ -9,6 +9,7 @@ import public Text.Parser
 
 data IdrisTokenKind
   = IIgnore
+  | ISymbol
   | IIdentifier
 
 Show a => Show (Token a) where
@@ -16,18 +17,22 @@ Show a => Show (Token a) where
 
 Show IdrisTokenKind where
   show IIgnore = " "
+  show ISymbol = "symbol"
   show IIdentifier = "identifier"
 
 Eq IdrisTokenKind where
   (==) IIgnore IIgnore = True
+  (==) ISymbol ISymbol = True
   (==) IIdentifier IIdentifier = True
   (==) _ _ = False
 
 TokenKind IdrisTokenKind where
   TokType IIgnore = ()
+  TokType ISymbol = String
   TokType IIdentifier = String
 
   tokValue IIgnore x = ()
+  tokValue ISymbol x = x
   tokValue IIdentifier x = x
 
 IdrisToken : Type
@@ -35,11 +40,12 @@ IdrisToken = Token IdrisTokenKind
 
 ident : Lexer
 ident =
-  any <+> manyUntil spaces any
+  any <+> manyUntil (spaces <|> symbols) any
 
 tokenMap : TokenMap IdrisToken
 tokenMap = toTokenMap
   [ (spaces, IIgnore)
+  , (symbols, ISymbol)
   , (ident, IIdentifier)
   ]
 
@@ -53,25 +59,46 @@ ignored (Tok IIgnore _) = True
 ignored _ = False
 
 
+
+-- UTILS
+
+showNamespace : List String -> String
+showNamespace ns =
+  concat (intersperse "." ns)
+
+
 -- PARSER
 
 Parser : Type -> Type
 Parser a = Grammar IdrisToken True a
 
-data ModuleDecl = MkModule String
+data ModuleDecl = MkModule (List String)
 
 Show ModuleDecl where
-  show (MkModule name) = "module " ++ name
+  show (MkModule name) = "module " ++ (showNamespace name)
 
-data ImportDecl = MkImport Bool String
+data ImportDecl = MkImport Bool (List String) (List String)
 
 Show ImportDecl where
-  show (MkImport isPublic name) = "import " ++ showPublic isPublic ++ name
+  show (MkImport isPublic ns nsAs) =
+    "import " ++ showPublic isPublic ++ showNamespace ns ++ showNsAs ns nsAs
     where
       showPublic : Bool -> String
       showPublic True = "public "
       showPublic False = ""
 
+      showNsAs : List String -> List String -> String
+      showNsAs ns' nsAs' =
+        if ns' /= nsAs'
+          then " as " ++ showNamespace nsAs'
+          else ""
+
+symbol : String -> Parser ()
+symbol expectedName = do
+  symbolName <- match ISymbol
+  if symbolName == expectedName
+    then pure ()
+    else fail ("Expected: " ++ expectedName)
 
 exactIdent : String -> Parser ()
 exactIdent expectedName = do
@@ -80,24 +107,33 @@ exactIdent expectedName = do
     then pure ()
     else fail ("Expected: " ++ expectedName)
 
-moduleDecl : Parser ModuleDecl
-moduleDecl = do
-  exactIdent "module"
-  name <- match IIdentifier
-  pure (MkModule name)
+namespace_ : Parser (List String)
+namespace_ = do
+  ns <- sepBy1 (symbol ".") (match IIdentifier)
+  pure ns
 
-importDecl : Parser ImportDecl
-importDecl = do
+module_ : Parser ModuleDecl
+module_ = do
+  exactIdent "module"
+  ns <- namespace_
+  pure (MkModule ns)
+
+import_ : Parser ImportDecl
+import_ = do
   exactIdent "import"
-  publicSpecifier <- optional (exactIdent "public")
-  name <- match IIdentifier
-  let isPublic = maybe False (const True) publicSpecifier
-  pure (MkImport isPublic name)
+  reexp <- option False (do
+    exactIdent "public"
+    pure True)
+  ns <- namespace_
+  nsAs <- option ns (do
+    exactIdent "as"
+    namespace_)
+  pure (MkImport reexp ns nsAs)
 
 program : Grammar IdrisToken False (Maybe ModuleDecl, List ImportDecl)
 program = do
-  mod <- optional moduleDecl
-  imports <- many importDecl
+  mod <- optional module_
+  imports <- many import_
   pure (mod, imports)
 
 runParser : String -> Grammar IdrisToken e a -> Maybe a
