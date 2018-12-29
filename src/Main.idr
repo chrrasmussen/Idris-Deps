@@ -23,18 +23,18 @@ parseModule rootDir ns = do
   pure (runParser contents program)
 
 partial
-traverseModules : String -> List String -> StateT (SortedMap (List String) Bool) IO (Tree IdrisHead)
+traverseModules : String -> List String -> StateT (SortedMap (List String) Bool) IO (Tree (IdrisHead, Bool))
 traverseModules rootDir ns' = do
   parsedModules <- get
   let Nothing = SortedMap.lookup ns' parsedModules
-    | pure (Node (MkIdrisHead defaultModule []) [])
+    | Just isLocal => pure (Node (MkIdrisHead defaultModule [], isLocal) [])
   Just currentModule <- lift (parseModule rootDir ns')
     | do
       modify (insert ns' False)
-      pure (Node (MkIdrisHead defaultModule []) [])
+      pure (Node (MkIdrisHead defaultModule [], False) [])
   modify (insert ns' True)
   subModules <- traverse (traverseModules rootDir) (map ns (imports currentModule))
-  pure (Node currentModule subModules)
+  pure (Node (currentModule, True) subModules)
 
 partial
 printModules : Tree IdrisHead -> IO ()
@@ -51,7 +51,7 @@ partial
 run : String -> String -> IO ()
 run rootDir mainModule = do
   (tree, ns') <- runStateT (traverseModules rootDir [mainModule]) empty
-  printModules tree
+  printModules (map fst tree)
   let allNs = SortedMap.toList ns'
   let (local, external) = partition ((== True) . snd) allNs
   putStrLn "All local namespaces:"
