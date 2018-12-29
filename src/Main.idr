@@ -116,8 +116,13 @@ record Import where
 
 record IdrisHead where
   constructor MkIdrisHead
-  mod : Maybe Module
+  mod : Module
   imports : List Import
+
+
+defaultModule : Module
+defaultModule =
+  MkModule ["Main"]
 
 
 -- SHOW IMPLEMENTATIONS
@@ -136,9 +141,7 @@ Show Import where
 Show IdrisHead where
   show (MkIdrisHead mod imports) =
     let
-      moduleString = case mod of
-        Just mod' => show mod'
-        _ => ""
+      moduleString = show mod
       importString = unlines (map show imports)
     in
       moduleString ++ "\n\n" ++ importString
@@ -188,7 +191,7 @@ import_ = do
 
 program : Grammar IdrisToken False IdrisHead
 program = do
-  mod <- optional module_
+  mod <- option defaultModule module_
   imports <- many import_
   pure (MkIdrisHead mod imports)
 
