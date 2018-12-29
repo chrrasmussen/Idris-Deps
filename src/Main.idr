@@ -25,16 +25,17 @@ parseModule rootDir ns = do
 partial
 traverseModules : String -> List String -> StateT (SortedMap (List String) Bool) IO (Tree (IdrisHead, Bool))
 traverseModules rootDir ns' = do
+  let fakeModule = MkModule ns'
   parsedModules <- get
   let Nothing = SortedMap.lookup ns' parsedModules
-    | Just isLocal => pure (Node (MkIdrisHead defaultModule [], isLocal) [])
-  Just currentModule <- lift (parseModule rootDir ns')
+    | Just isLocal => pure (Node (MkIdrisHead fakeModule [], isLocal) [])
+  Just currentIdrisHead <- lift (parseModule rootDir ns')
     | do
       modify (insert ns' False)
-      pure (Node (MkIdrisHead defaultModule [], False) [])
+      pure (Node (MkIdrisHead fakeModule [], False) [])
   modify (insert ns' True)
-  subModules <- traverse (traverseModules rootDir) (map ns (imports currentModule))
-  pure (Node (currentModule, True) subModules)
+  subModules <- traverse (traverseModules rootDir) (map ns (imports currentIdrisHead))
+  pure (Node (currentIdrisHead, True) subModules)
 
 partial
 printModules : Tree IdrisHead -> IO ()
@@ -44,23 +45,30 @@ printModules (Node rootLabel subForest) = do
   traverse printModules subForest
   pure ()
 
-
 -- MAIN
 
 partial
 run : String -> String -> IO ()
 run rootDir mainModule = do
-  (tree, ns') <- runStateT (traverseModules rootDir [mainModule]) empty
-  printModules (map fst tree)
-  let moduleNames = map (showNamespace . ns . IdrisHead.mod . fst) tree
-  putStrLn $ drawTree moduleNames
-  let allNs = SortedMap.toList ns'
-  let (local, external) = partition ((== True) . snd) allNs
-  putStrLn "All local namespaces:"
-  putStrLn $ unlines $ map (showNamespace . fst) local
-  putStrLn "All external namespaces:"
-  putStrLn $ unlines $ map (showNamespace . fst) external
-  putStrLn "*** Finished"
+    (tree, ns') <- runStateT (traverseModules rootDir [mainModule]) empty
+    let moduleNames = map showModule tree
+    putStrLn "*** Dependency tree"
+    putStrLn $ drawTree moduleNames
+
+    let allNs = SortedMap.toList ns'
+    let (local, external) = partition ((== True) . snd) allNs
+    putStrLn "*** All local modules"
+    putStrLn $ unlines $ map (showNamespace . fst) local
+    putStrLn "*** All external modules"
+    putStrLn $ unlines $ map (showNamespace . fst) external
+  where
+    showLocal : Bool -> String
+    showLocal True = ""
+    showLocal False = " (Lib)"
+
+    showModule : (IdrisHead, Bool) -> String
+    showModule (idrisHead, isLocal) =
+      showNamespace (ns (mod idrisHead)) ++ showLocal isLocal
 
 partial
 main : IO ()
