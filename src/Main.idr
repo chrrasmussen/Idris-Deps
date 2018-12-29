@@ -4,6 +4,7 @@ import System
 import Control.Monad.State
 import Data.SortedMap
 
+import Data.Tree
 import Deps.Data
 import Deps.Lexer
 import Deps.Parser
@@ -22,19 +23,25 @@ parseModule rootDir ns = do
   pure (runParser contents program)
 
 partial
-traverseModules : String -> List String -> StateT (SortedMap (List String) Bool) IO ()
+traverseModules : String -> List String -> StateT (SortedMap (List String) Bool) IO (Tree IdrisHead)
 traverseModules rootDir ns' = do
   parsedModules <- get
   let Nothing = SortedMap.lookup ns' parsedModules
-    | lift (putStrLn "*** Skipping")
-  Just moduleRes <- lift (parseModule rootDir ns')
+    | pure (Node (MkIdrisHead defaultModule []) [])
+  Just currentModule <- lift (parseModule rootDir ns')
     | do
       modify (insert ns' False)
-      pure ()
+      pure (Node (MkIdrisHead defaultModule []) [])
   modify (insert ns' True)
-  lift (print moduleRes)
-  lift (putStrLn "---")
-  traverse (traverseModules rootDir) (map ns (imports moduleRes))
+  subModules <- traverse (traverseModules rootDir) (map ns (imports currentModule))
+  pure (Node currentModule subModules)
+
+partial
+printModules : Tree IdrisHead -> IO ()
+printModules (Node rootLabel subForest) = do
+  print rootLabel
+  putStrLn "---"
+  traverse printModules subForest
   pure ()
 
 
@@ -43,7 +50,8 @@ traverseModules rootDir ns' = do
 partial
 run : String -> String -> IO ()
 run rootDir mainModule = do
-  (_, ns') <- runStateT (traverseModules rootDir [mainModule]) empty
+  (tree, ns') <- runStateT (traverseModules rootDir [mainModule]) empty
+  printModules tree
   let allNs = SortedMap.toList ns'
   let (local, external) = partition ((== True) . snd) allNs
   putStrLn "All local namespaces:"
