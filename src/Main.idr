@@ -52,6 +52,8 @@ run : String -> String -> IO ()
 run rootDir mainModule = do
   (tree, ns') <- runStateT (traverseModules rootDir [mainModule]) empty
   printModules (map fst tree)
+  let moduleNames = map (showNamespace . ns . IdrisHead.mod . fst) tree
+  putStrLn $ drawTree moduleNames
   let allNs = SortedMap.toList ns'
   let (local, external) = partition ((== True) . snd) allNs
   putStrLn "All local namespaces:"
