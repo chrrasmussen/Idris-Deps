@@ -1,4 +1,4 @@
-module Main
+module Deps.Parser
 
 import public Text.Parser
 

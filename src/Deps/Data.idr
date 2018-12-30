@@ -1,4 +1,4 @@
-module Main
+module Deps.Data
 
 
 %default total
