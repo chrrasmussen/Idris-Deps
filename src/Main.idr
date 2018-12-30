@@ -57,7 +57,6 @@ getDependees usesNs (Node (idrisHead, isLocal) subForest) = do
   traverse (getDependees usesNs) subForest
   pure ()
 
-
 partial
 skipPreviousModules : Tree (IdrisHead, Bool) -> State (SortedSet Namespace) (Tree (IdrisHead, Bool))
 skipPreviousModules (Node (idrisHead, isLocal) subForest) = do
@@ -70,13 +69,11 @@ skipPreviousModules (Node (idrisHead, isLocal) subForest) = do
   pure (Node (idrisHead, isLocal) updatedSubForest)
 
 
-
 -- UTILS
 
 showLocal : Bool -> String
 showLocal True = ""
 showLocal False = " (Lib)"
-
 
 moduleCacheToIsLocal : (Namespace, ModuleCache) -> (Namespace, Bool)
 moduleCacheToIsLocal (ns', moduleCache) =
