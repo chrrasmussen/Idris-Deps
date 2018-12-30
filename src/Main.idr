@@ -38,12 +38,12 @@ traverseModules rootDir ns' = do
   let Nothing = SortedMap.lookup ns' parsedModules
     | Just (AlreadyParsed localNode) => pure localNode
     | Just External => pure externalNode
-  Just currentIdrisHead <- lift (parseModule rootDir ns')
+  Just parsedIdrisHead <- lift (parseModule rootDir ns')
     | do
       modify (insert ns' External)
       pure externalNode
-  subModules <- traverse (traverseModules rootDir) (map ns (imports currentIdrisHead))
-  let node = Node (currentIdrisHead, True) subModules
+  subModules <- traverse (traverseModules rootDir) (map ns (imports parsedIdrisHead))
+  let node = Node (record { mod = MkModule ns' } parsedIdrisHead, True) subModules
   modify (insert ns' (AlreadyParsed node))
   pure node
 
