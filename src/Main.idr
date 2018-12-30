@@ -105,15 +105,12 @@ listModules rootDir mainModule listOption = do
   (_, ns') <- runStateT (traverseModules rootDir [mainModule]) empty
   let allNs = SortedMap.toList ns'
   let (local, external) = partition (isAlreadyParsed . snd) allNs
-  case listOption of
-    ListAll =>
-      putStrLn $ unlines $ map (showModule . moduleCacheToIsLocal) allNs
-
-    ListLocal =>
-      putStrLn $ unlines $ map (showNamespace . fst) local
-
-    ListExternal =>
-      putStrLn $ unlines $ map (showNamespace . fst) external
+  let nsOutput =
+    case listOption of
+      ListAll => map (showModule . moduleCacheToIsLocal) allNs
+      ListLocal => map (showNamespace . fst) local
+      ListExternal => map (showNamespace . fst) external
+  putStrLn (unlines nsOutput)
 
 
 partial
