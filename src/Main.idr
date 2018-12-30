@@ -110,7 +110,7 @@ listModules rootDir mainModule listOption = do
       ListAll => map (showModule . moduleCacheToIsLocal) allNs
       ListLocal => map (showNamespace . fst) local
       ListExternal => map (showNamespace . fst) external
-  putStrLn (unlines nsOutput)
+  putStr (unlines nsOutput)
 
 
 partial
@@ -119,7 +119,7 @@ depTree rootDir mainModule = do
     (tree, _) <- runStateT (traverseModules rootDir [mainModule]) empty
     let (treeSkippingModules, _) = runState (skipPreviousModules tree) empty
     let moduleNames = map showModuleFromIdrisHead treeSkippingModules
-    putStrLn $ drawTree moduleNames
+    putStr $ drawTree moduleNames
   where
       showModuleFromIdrisHead : (IdrisHead, Bool) -> String
       showModuleFromIdrisHead (idrisHead, isLocal) =
@@ -132,7 +132,7 @@ usesDep rootDir mainModule usesModule = do
   (tree, _) <- runStateT (traverseModules rootDir [mainModule]) empty
   let nsUsedIn = getDependees usesNs tree
   let allNs = SortedMap.toList nsUsedIn
-  putStrLn $ unlines $ map showModule allNs
+  putStr $ unlines $ map showModule allNs
 
 partial
 main : IO ()
