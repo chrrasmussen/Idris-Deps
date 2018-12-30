@@ -59,39 +59,49 @@ skipPreviousModules (Node (idrisHead, isLocal) subForest) = do
   updatedSubForest <- traverse skipPreviousModules subForest
   pure (Node (idrisHead, isLocal) updatedSubForest)
 
+-- UTILS
 
--- MAIN
+showLocal : Bool -> String
+showLocal True = ""
+showLocal False = " (Lib)"
+
+showModule : (IdrisHead, Bool) -> String
+showModule (idrisHead, isLocal) =
+  showNamespace (ns (mod idrisHead)) ++ showLocal isLocal
+
+
+-- CLI
 
 partial
-run : String -> String -> IO ()
-run rootDir mainModule = do
-    (tree, ns') <- runStateT (traverseModules rootDir [mainModule]) empty
-    let (treeSkippingModules, _) = runState (skipPreviousModules tree) empty
-    let moduleNames = map showModule treeSkippingModules
+listModules : String -> String -> IO ()
+listModules rootDir mainModule = do
+  (_, ns') <- runStateT (traverseModules rootDir [mainModule]) empty
+  let allNs = SortedMap.toList ns'
+  let (local, external) = partition (isAlreadyParsed . snd) allNs
+  putStrLn "*** All local modules"
+  putStrLn $ unlines $ map (showNamespace . fst) local
+  putStrLn "*** All external modules"
+  putStrLn $ unlines $ map (showNamespace . fst) external
 
-    putStrLn "*** Dependency tree"
-    putStrLn $ drawTree moduleNames
-
-    let allNs = SortedMap.toList ns'
-    let (local, external) = partition (isAlreadyParsed . snd) allNs
-
-    putStrLn "*** All local modules"
-    putStrLn $ unlines $ map (showNamespace . fst) local
-
-    putStrLn "*** All external modules"
-    putStrLn $ unlines $ map (showNamespace . fst) external
-  where
-    showLocal : Bool -> String
-    showLocal True = ""
-    showLocal False = " (Lib)"
-
-    showModule : (IdrisHead, Bool) -> String
-    showModule (idrisHead, isLocal) =
-      showNamespace (ns (mod idrisHead)) ++ showLocal isLocal
+partial
+depTree : String -> String -> IO ()
+depTree rootDir mainModule = do
+  (tree, _) <- runStateT (traverseModules rootDir [mainModule]) empty
+  let (treeSkippingModules, _) = runState (skipPreviousModules tree) empty
+  let moduleNames = map showModule treeSkippingModules
+  putStrLn "*** Dependency tree"
+  putStrLn $ drawTree moduleNames
 
 partial
 main : IO ()
 main = do
-  [_, rootDir, mainModule] <- getArgs
-    | putStrLn "Usage: ./deps <rootDir> <mainModule>"
-  run rootDir mainModule
+  args <- getArgs
+  case args of
+    [_, rootDir, mainModule, "--ls"] =>
+      listModules rootDir mainModule
+
+    [_, rootDir, mainModule, "--tree"] =>
+      depTree rootDir mainModule
+
+    _ =>
+      putStrLn "Usage: ./deps <rootDir> <mainModule> [--ls | --tree]"
