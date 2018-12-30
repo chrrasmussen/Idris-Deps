@@ -49,15 +49,14 @@ traverseModules rootDir ns' = do
   pure node
 
 partial
-getDependees : Namespace -> Tree (IdrisHead, Bool) -> SortedMap Namespace Bool
-getDependees usesNs (Node (idrisHead, isLocal) subForest) =
-  let allDepsList = map (toList . getDependees usesNs) subForest
-  in let sortedDeps : SortedMap Namespace Bool = fromList (join allDepsList)
-  in if usesNs `elem` (map ns (imports idrisHead)) then
+getDependees : Namespace -> Tree (IdrisHead, Bool) -> State (SortedMap Namespace Bool) ()
+getDependees usesNs (Node (idrisHead, isLocal) subForest) = do
+  when (usesNs `elem` (map ns (imports idrisHead))) $ do
     let currentNs = ns (mod idrisHead)
-    in SortedMap.insert currentNs isLocal sortedDeps
-  else
-    sortedDeps
+    modify (SortedMap.insert currentNs isLocal)
+  traverse (getDependees usesNs) subForest
+  pure ()
+
 
 partial
 skipPreviousModules : Tree (IdrisHead, Bool) -> State (SortedSet Namespace) (Tree (IdrisHead, Bool))
@@ -130,7 +129,7 @@ usesDep : String -> String -> String -> IO ()
 usesDep rootDir mainModule usesModule = do
   let usesNs = readNamespace usesModule
   (tree, _) <- runStateT (traverseModules rootDir [mainModule]) empty
-  let nsUsedIn = getDependees usesNs tree
+  let (_, nsUsedIn) = runState (getDependees usesNs tree) empty
   let allNs = SortedMap.toList nsUsedIn
   putStr $ unlines $ map showModule allNs
 
