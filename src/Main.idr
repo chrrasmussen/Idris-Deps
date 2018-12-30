@@ -155,4 +155,4 @@ main = do
       usesDep rootDir mainModule usesModule
 
     _ =>
-      putStrLn "Usage: ./deps <rootDir> <mainModule> [--ls | --tree | --uses <module>]"
+      putStrLn "Usage: ./deps <rootDir> <mainModule> [--list-all | --list-local | --list-external | --tree | --uses <module>]"
