@@ -11,7 +11,10 @@ joinString : String -> List String -> String
 joinString sep str =
   concat (intersperse sep str)
 
-showNamespace : List String -> String
+Namespace : Type
+Namespace = List String
+
+showNamespace : Namespace -> String
 showNamespace ns =
   joinString "." ns
 
@@ -20,13 +23,13 @@ showNamespace ns =
 
 record Module where
   constructor MkModule
-  ns : List String
+  ns : Namespace
 
 record Import where
   constructor MkImport
   isPublic : Bool
-  ns : List String
-  nsAs : List String
+  ns : Namespace
+  nsAs : Namespace
 
 record IdrisHead where
   constructor MkIdrisHead

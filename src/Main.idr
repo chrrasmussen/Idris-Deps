@@ -15,7 +15,7 @@ import Deps.Parser
 
 -- DIR/FILES
 
-parseModule : String -> List String -> IO (Maybe IdrisHead)
+parseModule : String -> Namespace -> IO (Maybe IdrisHead)
 parseModule rootDir ns = do
   let path = joinString "/" (rootDir :: ns) ++ ".idr"
   Right contents <- readFile path
@@ -31,7 +31,7 @@ isAlreadyParsed (AlreadyParsed _) = True
 isAlreadyParsed External = False
 
 partial
-traverseModules : String -> List String -> StateT (SortedMap (List String) ModuleCache) IO (Tree (IdrisHead, Bool))
+traverseModules : String -> Namespace -> StateT (SortedMap Namespace ModuleCache) IO (Tree (IdrisHead, Bool))
 traverseModules rootDir ns' = do
   let externalNode = Node (MkIdrisHead (MkModule ns') [], False) []
   parsedModules <- get
