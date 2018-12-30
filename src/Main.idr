@@ -129,7 +129,8 @@ usesDep : String -> String -> String -> IO ()
 usesDep rootDir mainModule usesModule = do
   let usesNs = readNamespace usesModule
   (tree, _) <- runStateT (traverseModules rootDir [mainModule]) empty
-  let (_, nsUsedIn) = runState (getDependees usesNs tree) empty
+  let (treeSkippingModules, _) = runState (skipPreviousModules tree) empty
+  let (_, nsUsedIn) = runState (getDependees usesNs treeSkippingModules) empty
   let allNs = SortedMap.toList nsUsedIn
   putStr $ unlines $ map showModule allNs
 
