@@ -47,16 +47,6 @@ traverseModules rootDir ns' = do
   modify (insert ns' (AlreadyParsed node))
   pure node
 
-
-partial
-printModules : Tree IdrisHead -> IO ()
-printModules (Node rootLabel subForest) = do
-  print rootLabel
-  putStrLn "---"
-  traverse printModules subForest
-  pure ()
-
-
 -- MAIN
 
 partial
