@@ -49,6 +49,17 @@ traverseModules rootDir ns' = do
   pure node
 
 partial
+getDependees : Namespace -> Tree (IdrisHead, Bool) -> SortedMap Namespace Bool
+getDependees usesNs (Node (idrisHead, isLocal) subForest) =
+  let allDepsList = map (toList . getDependees usesNs) subForest
+  in let sortedDeps : SortedMap Namespace Bool = fromList (join allDepsList)
+  in if usesNs `elem` (map ns (imports idrisHead)) then
+    let currentNs = ns (mod idrisHead)
+    in SortedMap.insert currentNs isLocal sortedDeps
+  else
+    sortedDeps
+
+partial
 skipPreviousModules : Tree (IdrisHead, Bool) -> State (SortedSet Namespace) (Tree (IdrisHead, Bool))
 skipPreviousModules (Node (idrisHead, isLocal) subForest) = do
   let currentNs = ns (mod idrisHead)
@@ -59,15 +70,21 @@ skipPreviousModules (Node (idrisHead, isLocal) subForest) = do
   updatedSubForest <- traverse skipPreviousModules subForest
   pure (Node (idrisHead, isLocal) updatedSubForest)
 
+
+
 -- UTILS
 
 showLocal : Bool -> String
 showLocal True = ""
 showLocal False = " (Lib)"
 
-showModule : (IdrisHead, Bool) -> String
-showModule (idrisHead, isLocal) =
-  showNamespace (ns (mod idrisHead)) ++ showLocal isLocal
+showModule : (Namespace, Bool) -> String
+showModule (ns', isLocal) =
+  showNamespace ns' ++ showLocal isLocal
+
+readNamespace : String -> Namespace
+readNamespace str =
+  split (== '.') str
 
 
 -- CLI
@@ -86,11 +103,25 @@ listModules rootDir mainModule = do
 partial
 depTree : String -> String -> IO ()
 depTree rootDir mainModule = do
+    (tree, _) <- runStateT (traverseModules rootDir [mainModule]) empty
+    let (treeSkippingModules, _) = runState (skipPreviousModules tree) empty
+    let moduleNames = map showModuleFromIdrisHead treeSkippingModules
+    putStrLn "*** Dependency tree"
+    putStrLn $ drawTree moduleNames
+  where
+      showModuleFromIdrisHead : (IdrisHead, Bool) -> String
+      showModuleFromIdrisHead (idrisHead, isLocal) =
+        showModule (ns (mod idrisHead), isLocal)
+
+partial
+usesDep : String -> String -> String -> IO ()
+usesDep rootDir mainModule usesModule = do
+  let usesNs = readNamespace usesModule
   (tree, _) <- runStateT (traverseModules rootDir [mainModule]) empty
-  let (treeSkippingModules, _) = runState (skipPreviousModules tree) empty
-  let moduleNames = map showModule treeSkippingModules
-  putStrLn "*** Dependency tree"
-  putStrLn $ drawTree moduleNames
+  let nsUsedIn = getDependees usesNs tree
+  let allNs = SortedMap.toList nsUsedIn
+  putStrLn ("*** `" ++ usesModule ++ "` used in")
+  putStrLn $ unlines $ map showModule allNs
 
 partial
 main : IO ()
@@ -103,5 +134,8 @@ main = do
     [_, rootDir, mainModule, "--tree"] =>
       depTree rootDir mainModule
 
+    [_, rootDir, mainModule, "--uses", usesModule] =>
+      usesDep rootDir mainModule usesModule
+
     _ =>
-      putStrLn "Usage: ./deps <rootDir> <mainModule> [--ls | --tree]"
+      putStrLn "Usage: ./deps <rootDir> <mainModule> [--ls | --tree | --uses <module>]"
