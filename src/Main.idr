@@ -133,8 +133,8 @@ usesDep rootDir mainNs usesNs = do
   let allNs = SortedMap.toList nsUsedIn
   putStr $ unlines $ map showModule allNs
 
-usage : IO ()
-usage =
+printUsage : IO ()
+printUsage =
   putStrLn "Usage: ./deps <rootDir> <mainModule> [--list-all | --list-local | --list-external | --tree | --uses <module>]"
 
 printInvalidNamespace : IO ()
@@ -145,7 +145,7 @@ partial
 main : IO ()
 main = do
   (_ :: rootDir :: mainModule :: restArgs) <- getArgs
-    | usage
+    | printUsage
   let Just mainNs = parseNamespace mainModule
     | printInvalidNamespace
   case restArgs of
@@ -167,4 +167,4 @@ main = do
       in usesDep rootDir mainNs usesNs
 
     _ =>
-      usage
+      printUsage
