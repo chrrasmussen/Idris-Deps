@@ -87,10 +87,9 @@ showModule : (Namespace, Bool) -> String
 showModule (ns', isLocal) =
   showNamespace ns' ++ showLocal isLocal
 
-readNamespace : String -> Namespace
-readNamespace str =
-  split (== '.') str
-
+parseNamespace : String -> Maybe Namespace
+parseNamespace str =
+  runParser str namespace_
 
 -- CLI
 
@@ -138,12 +137,17 @@ usage : IO ()
 usage =
   putStrLn "Usage: ./deps <rootDir> <mainModule> [--list-all | --list-local | --list-external | --tree | --uses <module>]"
 
+printInvalidNamespace : IO ()
+printInvalidNamespace =
+  putStrLn "Invalid namespace"
+
 partial
 main : IO ()
 main = do
   (_ :: rootDir :: mainModule :: restArgs) <- getArgs
     | usage
-  let mainNs = readNamespace mainModule
+  let Just mainNs = parseNamespace mainModule
+    | printInvalidNamespace
   case restArgs of
     ["--list-all"] =>
       listModules rootDir mainNs ListAll
@@ -158,7 +162,9 @@ main = do
       depTree rootDir mainNs
 
     ["--uses", usesModule] =>
-      usesDep rootDir mainNs (readNamespace usesModule)
+      let Just usesNs = parseNamespace usesModule
+        | printInvalidNamespace
+      in usesDep rootDir mainNs usesNs
 
     _ =>
       usage
