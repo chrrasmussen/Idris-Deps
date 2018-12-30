@@ -100,9 +100,9 @@ data ListOption
   | ListExternal
 
 partial
-listModules : String -> String -> ListOption -> IO ()
-listModules rootDir mainModule listOption = do
-  (_, ns') <- runStateT (traverseModules rootDir [mainModule]) empty
+listModules : String -> Namespace -> ListOption -> IO ()
+listModules rootDir mainNs listOption = do
+  (_, ns') <- runStateT (traverseModules rootDir mainNs) empty
   let allNs = SortedMap.toList ns'
   let (local, external) = partition (isAlreadyParsed . snd) allNs
   let nsOutput =
@@ -114,9 +114,9 @@ listModules rootDir mainModule listOption = do
 
 
 partial
-depTree : String -> String -> IO ()
-depTree rootDir mainModule = do
-    (tree, _) <- runStateT (traverseModules rootDir [mainModule]) empty
+depTree : String -> Namespace -> IO ()
+depTree rootDir mainNs = do
+    (tree, _) <- runStateT (traverseModules rootDir mainNs) empty
     let (treeSkippingModules, _) = runState (skipPreviousModules tree) empty
     let moduleNames = map showModuleFromIdrisHead treeSkippingModules
     putStr $ drawTree moduleNames
@@ -126,34 +126,39 @@ depTree rootDir mainModule = do
         showModule (ns (mod idrisHead), isLocal)
 
 partial
-usesDep : String -> String -> String -> IO ()
-usesDep rootDir mainModule usesModule = do
-  let usesNs = readNamespace usesModule
-  (tree, _) <- runStateT (traverseModules rootDir [mainModule]) empty
+usesDep : String -> Namespace -> Namespace -> IO ()
+usesDep rootDir mainNs usesNs = do
+  (tree, _) <- runStateT (traverseModules rootDir mainNs) empty
   let (treeSkippingModules, _) = runState (skipPreviousModules tree) empty
   let nsUsedIn = getDependees usesNs treeSkippingModules
   let allNs = SortedMap.toList nsUsedIn
   putStr $ unlines $ map showModule allNs
 
+usage : IO ()
+usage =
+  putStrLn "Usage: ./deps <rootDir> <mainModule> [--list-all | --list-local | --list-external | --tree | --uses <module>]"
+
 partial
 main : IO ()
 main = do
-  args <- getArgs
-  case args of
-    [_, rootDir, mainModule, "--list-all"] =>
-      listModules rootDir mainModule ListAll
+  (_ :: rootDir :: mainModule :: restArgs) <- getArgs
+    | usage
+  let mainNs = readNamespace mainModule
+  case restArgs of
+    ["--list-all"] =>
+      listModules rootDir mainNs ListAll
 
-    [_, rootDir, mainModule, "--list-local"] =>
-      listModules rootDir mainModule ListLocal
+    ["--list-local"] =>
+      listModules rootDir mainNs ListLocal
 
-    [_, rootDir, mainModule, "--list-external"] =>
-      listModules rootDir mainModule ListExternal
+    ["--list-external"] =>
+      listModules rootDir mainNs ListExternal
 
-    [_, rootDir, mainModule, "--tree"] =>
-      depTree rootDir mainModule
+    ["--tree"] =>
+      depTree rootDir mainNs
 
-    [_, rootDir, mainModule, "--uses", usesModule] =>
-      usesDep rootDir mainModule usesModule
+    ["--uses", usesModule] =>
+      usesDep rootDir mainNs (readNamespace usesModule)
 
     _ =>
-      putStrLn "Usage: ./deps <rootDir> <mainModule> [--list-all | --list-local | --list-external | --tree | --uses <module>]"
+      usage
