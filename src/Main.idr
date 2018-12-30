@@ -78,6 +78,11 @@ showLocal : Bool -> String
 showLocal True = ""
 showLocal False = " (Lib)"
 
+
+moduleCacheToIsLocal : (Namespace, ModuleCache) -> (Namespace, Bool)
+moduleCacheToIsLocal (ns', moduleCache) =
+  (ns', isAlreadyParsed moduleCache)
+
 showModule : (Namespace, Bool) -> String
 showModule (ns', isLocal) =
   showNamespace ns' ++ showLocal isLocal
@@ -89,16 +94,27 @@ readNamespace str =
 
 -- CLI
 
+data ListOption
+  = ListAll
+  | ListLocal
+  | ListExternal
+
 partial
-listModules : String -> String -> IO ()
-listModules rootDir mainModule = do
+listModules : String -> String -> ListOption -> IO ()
+listModules rootDir mainModule listOption = do
   (_, ns') <- runStateT (traverseModules rootDir [mainModule]) empty
   let allNs = SortedMap.toList ns'
   let (local, external) = partition (isAlreadyParsed . snd) allNs
-  putStrLn "*** All local modules"
-  putStrLn $ unlines $ map (showNamespace . fst) local
-  putStrLn "*** All external modules"
-  putStrLn $ unlines $ map (showNamespace . fst) external
+  case listOption of
+    ListAll =>
+      putStrLn $ unlines $ map (showModule . moduleCacheToIsLocal) allNs
+
+    ListLocal =>
+      putStrLn $ unlines $ map (showNamespace . fst) local
+
+    ListExternal =>
+      putStrLn $ unlines $ map (showNamespace . fst) external
+
 
 partial
 depTree : String -> String -> IO ()
@@ -106,7 +122,6 @@ depTree rootDir mainModule = do
     (tree, _) <- runStateT (traverseModules rootDir [mainModule]) empty
     let (treeSkippingModules, _) = runState (skipPreviousModules tree) empty
     let moduleNames = map showModuleFromIdrisHead treeSkippingModules
-    putStrLn "*** Dependency tree"
     putStrLn $ drawTree moduleNames
   where
       showModuleFromIdrisHead : (IdrisHead, Bool) -> String
@@ -120,7 +135,6 @@ usesDep rootDir mainModule usesModule = do
   (tree, _) <- runStateT (traverseModules rootDir [mainModule]) empty
   let nsUsedIn = getDependees usesNs tree
   let allNs = SortedMap.toList nsUsedIn
-  putStrLn ("*** `" ++ usesModule ++ "` used in")
   putStrLn $ unlines $ map showModule allNs
 
 partial
@@ -128,8 +142,14 @@ main : IO ()
 main = do
   args <- getArgs
   case args of
-    [_, rootDir, mainModule, "--ls"] =>
-      listModules rootDir mainModule
+    [_, rootDir, mainModule, "--list-all"] =>
+      listModules rootDir mainModule ListAll
+
+    [_, rootDir, mainModule, "--list-local"] =>
+      listModules rootDir mainModule ListLocal
+
+    [_, rootDir, mainModule, "--list-external"] =>
+      listModules rootDir mainModule ListExternal
 
     [_, rootDir, mainModule, "--tree"] =>
       depTree rootDir mainModule
