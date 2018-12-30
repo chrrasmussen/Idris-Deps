@@ -54,13 +54,16 @@ run : String -> String -> IO ()
 run rootDir mainModule = do
     (tree, ns') <- runStateT (traverseModules rootDir [mainModule]) empty
     let moduleNames = map showModule tree
+
     putStrLn "*** Dependency tree"
     putStrLn $ drawTree moduleNames
 
     let allNs = SortedMap.toList ns'
     let (local, external) = partition (isAlreadyParsed . snd) allNs
+
     putStrLn "*** All local modules"
     putStrLn $ unlines $ map (showNamespace . fst) local
+
     putStrLn "*** All external modules"
     putStrLn $ unlines $ map (showNamespace . fst) external
   where
