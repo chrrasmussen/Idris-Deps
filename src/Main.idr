@@ -3,6 +3,7 @@ module Main
 import System
 import Control.Monad.State
 import Data.SortedMap
+import Data.SortedSet
 
 import Data.Tree
 import Deps.Data
@@ -47,13 +48,26 @@ traverseModules rootDir ns' = do
   modify (insert ns' (AlreadyParsed node))
   pure node
 
+partial
+skipPreviousModules : Tree (IdrisHead, Bool) -> State (SortedSet Namespace) (Tree (IdrisHead, Bool))
+skipPreviousModules (Node (idrisHead, isLocal) subForest) = do
+  let currentNs = ns (mod idrisHead)
+  parsedModules <- get
+  let False = SortedSet.contains currentNs parsedModules
+    | pure (Node (record { imports = [] } idrisHead, isLocal) [])
+  modify (SortedSet.insert currentNs)
+  updatedSubForest <- traverse skipPreviousModules subForest
+  pure (Node (idrisHead, isLocal) updatedSubForest)
+
+
 -- MAIN
 
 partial
 run : String -> String -> IO ()
 run rootDir mainModule = do
     (tree, ns') <- runStateT (traverseModules rootDir [mainModule]) empty
-    let moduleNames = map showModule tree
+    let (treeSkippingModules, _) = runState (skipPreviousModules tree) empty
+    let moduleNames = map showModule treeSkippingModules
 
     putStrLn "*** Dependency tree"
     putStrLn $ drawTree moduleNames
