@@ -27,7 +27,7 @@ exactIdent expectedName = do
     then pure ()
     else fail ("Expected: " ++ expectedName)
 
-namespace_ : Parser (List String)
+namespace_ : Parser Namespace
 namespace_ = do
   ns <- sepBy1 (symbol ".") (match IIdentifier)
   pure ns
