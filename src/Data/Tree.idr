@@ -1,5 +1,8 @@
 module Data.Tree
 
+-- Implementation heavily inspired by Haskell's Data.Tree
+
+
 %default total
 %access public export
 

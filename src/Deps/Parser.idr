@@ -1,5 +1,8 @@
 module Deps.Parser
 
+-- Implementation heavily inspired by Idris' Language.JSON and Blodwen
+
+
 import public Text.Parser
 
 import Deps.Data

@@ -1,5 +1,8 @@
 module Deps.Lexer
 
+-- Implementation heavily inspired by Idris' Language.JSON and Blodwen
+
+
 import public Text.Lexer
 
 
