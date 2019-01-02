@@ -8,32 +8,32 @@ import public Text.Lexer
 
 
 data IdrisTokenKind
-  = IIgnore
-  | ISymbol
-  | IIdentifier
+  = Ignore
+  | Symbol
+  | Identifier
 
 Show a => Show (Token a) where
   show (Tok x _) = show x
 
 Show IdrisTokenKind where
-  show IIgnore = " "
-  show ISymbol = "symbol"
-  show IIdentifier = "identifier"
+  show Ignore = " "
+  show Symbol = "symbol"
+  show Identifier = "identifier"
 
 Eq IdrisTokenKind where
-  (==) IIgnore IIgnore = True
-  (==) ISymbol ISymbol = True
-  (==) IIdentifier IIdentifier = True
+  (==) Ignore Ignore = True
+  (==) Symbol Symbol = True
+  (==) Identifier Identifier = True
   (==) _ _ = False
 
 TokenKind IdrisTokenKind where
-  TokType IIgnore = ()
-  TokType ISymbol = String
-  TokType IIdentifier = String
+  TokType Ignore = ()
+  TokType Symbol = String
+  TokType Identifier = String
 
-  tokValue IIgnore x = ()
-  tokValue ISymbol x = x
-  tokValue IIdentifier x = x
+  tokValue Ignore x = ()
+  tokValue Symbol x = x
+  tokValue Identifier x = x
 
 IdrisToken : Type
 IdrisToken = Token IdrisTokenKind
@@ -70,12 +70,12 @@ ident = pred startIdent <+> many (pred validIdent)
 
 tokenMap : TokenMap IdrisToken
 tokenMap = toTokenMap
-  [ (comment, IIgnore)
-  , (commentAuxStyle, IIgnore)
-  , (blockComment, IIgnore)
-  , (spaces, IIgnore)
-  , (symbols, ISymbol)
-  , (ident, IIdentifier)
+  [ (comment, Ignore)
+  , (commentAuxStyle, Ignore)
+  , (blockComment, Ignore)
+  , (spaces, Ignore)
+  , (symbols, Symbol)
+  , (ident, Identifier)
   ]
 
 runLexer : String -> List (TokenData IdrisToken)
@@ -84,5 +84,5 @@ runLexer str =
   in res
 
 ignored : IdrisToken -> Bool
-ignored (Tok IIgnore _) = True
+ignored (Tok Ignore _) = True
 ignored _ = False

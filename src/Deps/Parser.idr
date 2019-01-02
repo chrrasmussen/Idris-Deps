@@ -15,21 +15,21 @@ Parser a = Grammar IdrisToken True a
 
 symbol : String -> Parser ()
 symbol expectedName = do
-  symbolName <- match ISymbol
+  symbolName <- match Symbol
   if symbolName == expectedName
     then pure ()
     else fail ("Expected: " ++ expectedName)
 
 exactIdent : String -> Parser ()
 exactIdent expectedName = do
-  identName <- match IIdentifier
+  identName <- match Identifier
   if identName == expectedName
     then pure ()
     else fail ("Expected: " ++ expectedName)
 
 namespace_ : Parser Namespace
 namespace_ = do
-  ns <- sepBy1 (symbol ".") (match IIdentifier)
+  ns <- sepBy1 (symbol ".") (match Identifier)
   pure ns
 
 module_ : Parser Module
