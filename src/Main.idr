@@ -14,6 +14,18 @@ import Deps.Parser
 %default total
 
 
+-- HELPER FUNCTIONS
+
+filterMap : (a -> Maybe b) -> List a -> List b
+filterMap pred xs =
+  foldl
+    (\acc, current => case pred current of
+      Just result => result :: acc
+      Nothing => acc)
+    []
+    xs
+
+
 -- DIR/FILES
 
 parseModule : String -> Namespace -> IO (Maybe IdrisHead)
@@ -25,41 +37,71 @@ parseModule rootDir ns = do
 
 data ModuleCache
   = AlreadyParsed (Tree (IdrisHead, Bool))
-  | External
+  | Skipped
 
 isAlreadyParsed : ModuleCache -> Bool
 isAlreadyParsed (AlreadyParsed _) = True
-isAlreadyParsed External = False
+isAlreadyParsed Skipped = False
+
+data ParsedModule
+  = Local IdrisHead
+  | External
+
+isLocalModule : ParsedModule -> Bool
+isLocalModule (Local _) = True
+isLocalModule External = False
 
 partial
-traverseModules : String -> Namespace -> StateT (SortedMap Namespace ModuleCache) IO (Tree (IdrisHead, Bool))
-traverseModules rootDir ns' = do
-  let externalNode = Node (MkIdrisHead ns' [], False) []
+parseModulesHelper : String -> Namespace -> StateT (SortedMap Namespace ParsedModule) IO ()
+parseModulesHelper rootDir ns' = do
   parsedModules <- get
   let Nothing = SortedMap.lookup ns' parsedModules
+    | pure () -- Skip already parsed modules
+  Just parsedModule <- lift (parseModule rootDir ns')
+    | modify (insert ns' External)
+  let localModule = Local (record { moduleNs = ns' } parsedModule)
+  modify (insert ns' localModule)
+  traverse (parseModulesHelper rootDir) (map ns (imports parsedModule))
+  pure ()
+
+partial
+parseModules : String -> Namespace -> IO (SortedMap Namespace ParsedModule)
+parseModules rootDir ns' = do
+  (_, state) <- runStateT (parseModulesHelper rootDir ns') empty
+  pure state
+
+partial
+buildTree : SortedMap Namespace ParsedModule -> Namespace -> State (SortedMap Namespace ModuleCache) (Tree (IdrisHead, Bool))
+buildTree parsedModules ns' = do
+  let externalNode = Node (MkIdrisHead ns' [], False) []
+  trees <- get
+  let Nothing = SortedMap.lookup ns' trees
     | Just (AlreadyParsed localNode) => pure localNode
-    | Just External => pure externalNode
-  Just parsedIdrisHead <- lift (parseModule rootDir ns')
+    | Just Skipped => pure externalNode
+  let Just (Local parsedIdrisHead) = SortedMap.lookup ns' parsedModules
     | do
-      modify (insert ns' External)
+      modify (insert ns' Skipped)
       pure externalNode
-  subModules <- traverse (traverseModules rootDir) (map ns (imports parsedIdrisHead))
+  subModules <- traverse (buildTree parsedModules) (map ns (imports parsedIdrisHead))
   let node = Node (record { moduleNs = ns' } parsedIdrisHead, True) subModules
   modify (insert ns' (AlreadyParsed node))
   pure node
 
 partial
-getDependees : Namespace -> Tree (IdrisHead, Bool) -> SortedMap Namespace Bool
-getDependees usesNs (Node (idrisHead, isLocal) subForest) =
-  let
-    allDepsList = map (toList . getDependees usesNs) subForest
-    sortedDeps = fromList (join allDepsList)
-    currentNs = moduleNs idrisHead
-  in
-    if usesNs `elem` (map ns (imports idrisHead)) then
-      SortedMap.insert currentNs isLocal sortedDeps
-    else
-      sortedDeps
+traverseModules : String -> Namespace -> IO (Tree (IdrisHead, Bool))
+traverseModules rootDir ns' = do
+  parsedModules <- parseModules rootDir ns'
+  let (tree, _) = runState (buildTree parsedModules ns') empty
+  pure tree
+
+partial
+getDependees : Namespace -> List IdrisHead -> List Namespace
+getDependees usesNs idrisHeads =
+  filterMap
+    (\idrisHead => if usesNs `elem` map ns (imports idrisHead)
+      then Just (moduleNs idrisHead)
+      else Nothing)
+    idrisHeads
 
 partial
 skipPreviousModules : Tree (IdrisHead, Bool) -> State (SortedSet Namespace) (Tree (IdrisHead, Bool))
@@ -83,6 +125,10 @@ moduleCacheToIsLocal : (Namespace, ModuleCache) -> (Namespace, Bool)
 moduleCacheToIsLocal (ns', moduleCache) =
   (ns', isAlreadyParsed moduleCache)
 
+parsedModuleToIsLocal : (Namespace, ParsedModule) -> (Namespace, Bool)
+parsedModuleToIsLocal (ns', moduleCache) =
+  (ns', isLocalModule moduleCache)
+
 showModule : (Namespace, Bool) -> String
 showModule (ns', isLocal) =
   showNamespace ns' ++ showLocal isLocal
@@ -90,6 +136,7 @@ showModule (ns', isLocal) =
 parseNamespace : String -> Maybe Namespace
 parseNamespace str =
   runParser str namespace_
+
 
 -- CLI
 
@@ -101,12 +148,12 @@ data ListOption
 partial
 listModules : String -> Namespace -> ListOption -> IO ()
 listModules rootDir mainNs listOption = do
-  (_, ns') <- runStateT (traverseModules rootDir mainNs) empty
-  let allNs = SortedMap.toList ns'
-  let (local, external) = partition (isAlreadyParsed . snd) allNs
+  modules <- parseModules rootDir mainNs
+  let allNs = SortedMap.toList modules
+  let (local, external) = partition (isLocalModule . snd) allNs
   let nsOutput =
     case listOption of
-      ListAll => map (showModule . moduleCacheToIsLocal) allNs
+      ListAll => map (showModule . parsedModuleToIsLocal) allNs
       ListLocal => map (showNamespace . fst) local
       ListExternal => map (showNamespace . fst) external
   putStr (unlines nsOutput)
@@ -115,7 +162,7 @@ listModules rootDir mainNs listOption = do
 partial
 depTree : String -> Namespace -> IO ()
 depTree rootDir mainNs = do
-    (tree, _) <- runStateT (traverseModules rootDir mainNs) empty
+    tree <- traverseModules rootDir mainNs
     let (treeSkippingModules, _) = runState (skipPreviousModules tree) empty
     let moduleNames = map showModuleFromIdrisHead treeSkippingModules
     putStr $ drawTree moduleNames
@@ -127,11 +174,17 @@ depTree rootDir mainNs = do
 partial
 usesDep : String -> Namespace -> Namespace -> IO ()
 usesDep rootDir mainNs usesNs = do
-  (tree, _) <- runStateT (traverseModules rootDir mainNs) empty
-  let (treeSkippingModules, _) = runState (skipPreviousModules tree) empty
-  let nsUsedIn = getDependees usesNs treeSkippingModules
-  let allNs = SortedMap.toList nsUsedIn
-  putStr $ unlines $ map showModule allNs
+  parsedModules <- parseModules rootDir mainNs
+  let usedInNs = getDependees usesNs (localModules parsedModules)
+  putStr $ unlines $ map showNamespace usedInNs
+where
+  localModules : SortedMap Namespace ParsedModule -> List IdrisHead
+  localModules parsedModules =
+    filterMap
+      (\parsedModule => case parsedModule of
+        Local idrisHead => Just idrisHead
+        External => Nothing)
+      (values parsedModules)
 
 printUsage : IO ()
 printUsage =
