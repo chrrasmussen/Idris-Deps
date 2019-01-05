@@ -2,7 +2,7 @@ package deps
 
 pkgs = contrib
 sourcedir = src
-opts = "--warnpartial"
+opts = "--warnreach --partial-eval"
 
 main = Main
 executable = deps

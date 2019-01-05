@@ -1,7 +1,5 @@
 package runtests
 
-
-
 sourcedir = tests
 executable = runtests
 
