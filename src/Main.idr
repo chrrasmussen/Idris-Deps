@@ -34,7 +34,7 @@ isAlreadyParsed External = False
 partial
 traverseModules : String -> Namespace -> StateT (SortedMap Namespace ModuleCache) IO (Tree (IdrisHead, Bool))
 traverseModules rootDir ns' = do
-  let externalNode = Node (MkIdrisHead (MkModule ns') [], False) []
+  let externalNode = Node (MkIdrisHead ns' [], False) []
   parsedModules <- get
   let Nothing = SortedMap.lookup ns' parsedModules
     | Just (AlreadyParsed localNode) => pure localNode
@@ -44,7 +44,7 @@ traverseModules rootDir ns' = do
       modify (insert ns' External)
       pure externalNode
   subModules <- traverse (traverseModules rootDir) (map ns (imports parsedIdrisHead))
-  let node = Node (record { mod = MkModule ns' } parsedIdrisHead, True) subModules
+  let node = Node (record { moduleNs = ns' } parsedIdrisHead, True) subModules
   modify (insert ns' (AlreadyParsed node))
   pure node
 
@@ -54,7 +54,7 @@ getDependees usesNs (Node (idrisHead, isLocal) subForest) =
   let
     allDepsList = map (toList . getDependees usesNs) subForest
     sortedDeps = fromList (join allDepsList)
-    currentNs = ns (mod idrisHead)
+    currentNs = moduleNs idrisHead
   in
     if usesNs `elem` (map ns (imports idrisHead)) then
       SortedMap.insert currentNs isLocal sortedDeps
@@ -64,7 +64,7 @@ getDependees usesNs (Node (idrisHead, isLocal) subForest) =
 partial
 skipPreviousModules : Tree (IdrisHead, Bool) -> State (SortedSet Namespace) (Tree (IdrisHead, Bool))
 skipPreviousModules (Node (idrisHead, isLocal) subForest) = do
-  let currentNs = ns (mod idrisHead)
+  let currentNs = moduleNs idrisHead
   parsedModules <- get
   let False = SortedSet.contains currentNs parsedModules
     | pure (Node (record { imports = [] } idrisHead, isLocal) [])
@@ -122,7 +122,7 @@ depTree rootDir mainNs = do
   where
       showModuleFromIdrisHead : (IdrisHead, Bool) -> String
       showModuleFromIdrisHead (idrisHead, isLocal) =
-        showModule (ns (mod idrisHead), isLocal)
+        showModule (moduleNs idrisHead, isLocal)
 
 partial
 usesDep : String -> Namespace -> Namespace -> IO ()

@@ -21,10 +21,6 @@ showNamespace ns =
 
 -- DATA TYPES
 
-record Module where
-  constructor MkModule
-  ns : Namespace
-
 record Import where
   constructor MkImport
   isPublic : Bool
@@ -33,19 +29,16 @@ record Import where
 
 record IdrisHead where
   constructor MkIdrisHead
-  mod : Module
+  moduleNs : Namespace
   imports : List Import
 
 
-defaultModule : Module
-defaultModule =
-  MkModule ["Main"]
+defaultModuleNs : Namespace
+defaultModuleNs =
+  ["Main"]
 
 
 -- SHOW IMPLEMENTATIONS
-
-Show Module where
-  show (MkModule ns) = "module " ++ showNamespace ns
 
 Show Import where
   show (MkImport isPublic ns nsAs) =

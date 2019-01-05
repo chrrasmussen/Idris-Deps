@@ -35,11 +35,10 @@ namespace_ = do
   ns <- sepBy1 (symbol ".") (match Identifier)
   pure ns
 
-module_ : Parser Module
+module_ : Parser Namespace
 module_ = do
   exactIdent "module"
-  ns <- namespace_
-  pure (MkModule ns)
+  namespace_
 
 import_ : Parser Import
 import_ = do
@@ -55,9 +54,9 @@ import_ = do
 
 program : Grammar IdrisToken False IdrisHead
 program = do
-  mod <- option defaultModule module_
+  moduleNs <- option defaultModuleNs module_
   imports <- many import_
-  pure (MkIdrisHead mod imports)
+  pure (MkIdrisHead moduleNs imports)
 
 runParser : String -> Grammar IdrisToken e a -> Maybe a
 runParser str parser =
