@@ -188,7 +188,7 @@ where
 
 printUsage : IO ()
 printUsage =
-  putStrLn "Usage: ./deps <rootDir> <mainModule> [--list-all | --list-local | --list-external | --tree | --uses <module>]"
+  putStrLn "Usage: deps <rootDir> <mainModule> [--list-all | --list-local | --list-external | --tree | --uses <module>]"
 
 printInvalidNamespace : IO ()
 printInvalidNamespace =
