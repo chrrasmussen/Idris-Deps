@@ -1,4 +1,12 @@
-*.ibc
-deps
-
+# macOS
 .DS_Store
+
+# Idris
+*.ibc
+
+# Binaries
+/deps
+/runtests
+
+# Tests
+tests/**/output

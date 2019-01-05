@@ -1,0 +1,4 @@
+module Local
+
+empty : ()
+empty = ()
