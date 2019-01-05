@@ -1,0 +1,21 @@
+echo "*** List all"
+$1 . Main --list-all
+echo
+
+echo "*** List local"
+$1 . Main --list-local
+echo
+
+echo "*** List external"
+$1 . Main --list-external
+echo
+
+echo "*** Tree"
+$1 . Main --tree
+echo
+
+echo "*** Uses"
+$1 . Main --uses Submodule.DepC
+echo
+
+rm -rf *.ibc

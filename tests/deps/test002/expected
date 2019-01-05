@@ -1,0 +1,37 @@
+*** List all
+DepA
+DepB
+Main
+Submodule.DepC
+Submodule.DepD
+System (Lib)
+
+*** List local
+DepA
+DepB
+Main
+Submodule.DepC
+Submodule.DepD
+
+*** List external
+System
+
+*** Tree
+Main
+|
++- System (Lib)
+|
++- DepA
+|  |
+|  `- Submodule.DepC
+|     |
+|     `- Submodule.DepD
+|
+`- DepB
+   |
+   `- Submodule.DepC
+
+*** Uses
+DepA
+DepB
+

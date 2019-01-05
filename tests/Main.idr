@@ -8,7 +8,7 @@ import System
 
 tests : List String
 tests =
-  ["test001"]
+  ["test001", "test002"]
 
 chdir : String -> IO Bool
 chdir dir = do
